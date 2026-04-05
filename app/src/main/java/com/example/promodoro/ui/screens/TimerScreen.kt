@@ -1,14 +1,24 @@
 package com.example.promodoro.ui.screens
 
+import android.app.Activity
+import android.service.autofill.OnClickAction
+import android.view.WindowInsetsController
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promodoro.model.TimerState
 import com.example.promodoro.utils.TimeUtils
@@ -20,15 +30,30 @@ import kotlinx.coroutines.launch
 @Composable
 fun TimerScreen(
     modifier: Modifier = Modifier,
-    viewModel: TimerViewModel = viewModel()
+    viewModel: TimerViewModel = viewModel(),
+    onNavigateToSettings:()-> Unit
 ) {
     // 收集 ViewModel 中的状态
     val state by viewModel.uiState.collectAsState()
-
     // 控制底部抽屉
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
+
+    //全屏控制
+    val view = LocalView.current
+    if(!view.isInEditMode){
+        val window = (view.context as Activity).window
+        val insetsController = remember { WindowCompat.getInsetsController(window,view) }
+        LaunchedEffect(state.isRunning, state.isImmersiveModeEnabled) {
+            if (state.isRunning && state.isImmersiveModeEnabled) {
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
 
     // 将状态和事件传递给纯 UI 组件
     TimerScreenContent(
@@ -36,7 +61,8 @@ fun TimerScreen(
         state = state,
         onToggleClick = { viewModel.toggleTimer() },
         onResetClick = { viewModel.resetTimer() },
-        onOpenSettings = { showSheet = true }
+        onOpenSettings = onNavigateToSettings,
+        onTimeTextClick = {if(!state.isRunning) showSheet = true}
     )
 
     // 抽屉
@@ -66,7 +92,8 @@ fun TimerScreenContent(
     state: TimerState,
     onToggleClick: () -> Unit,
     onResetClick: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onTimeTextClick: ()-> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         // 设置按钮
@@ -89,11 +116,19 @@ fun TimerScreenContent(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 显示倒计时时间
-            Text(
-                text = TimeUtils.formatTime(state.timeRemaining),
-                style = MaterialTheme.typography.displayLarge
-            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(enabled = !state.isRunning) {onTimeTextClick()}
+                    .padding(16.dp)
+            ){
+                // 显示倒计时时间
+                Text(
+                    text = TimeUtils.formatTime(state.timeRemaining),
+                    style = MaterialTheme.typography.displayLarge
+                )
+            }
+
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -121,7 +156,8 @@ fun TimerScreenPreview() {
             state = TimerState(timeRemaining = 25 * 60, isRunning = false),
             onToggleClick = {},
             onResetClick = {},
-            onOpenSettings = {}
+            onOpenSettings = {},
+            onTimeTextClick = {}
         )
     }
 }

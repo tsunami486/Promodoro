@@ -64,4 +64,10 @@ class TimerViewModel : ViewModel() {
             it.copy(timeRemaining = minutes * 60)
         }
     }
+
+    fun setImmersiveMode(enabled: Boolean) {
+        _uiState.update {
+            it.copy(isImmersiveModeEnabled = enabled)
+        }
+    }
 }
