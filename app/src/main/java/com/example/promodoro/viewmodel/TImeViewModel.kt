@@ -47,9 +47,15 @@ class TimerViewModel : ViewModel() {
         timerJob?.cancel()
     }
 
+    fun resetTimer(minutes: Int) {
+        pauseTimer()
+        _uiState.update { it.copy(timeToRemaining = minutes * 60) }
+        _uiState.update { it.copy(timeRemaining = it.timeToRemaining) }
+    }
+
     fun resetTimer() {
         pauseTimer()
-        _uiState.value = TimerState(timeRemaining = 25 * 60)
+        _uiState.update { it.copy(timeRemaining = it.timeToRemaining) }
     }
 
     fun setWorkTime(minutes: Int) {
