@@ -70,4 +70,16 @@ class TimerViewModel : ViewModel() {
             it.copy(isImmersiveModeEnabled = enabled)
         }
     }
+
+    fun handleAppBackground() {
+        if (_uiState.value.isRunning) {
+            pauseTimer()
+            _uiState.update { it.copy(isFocusFailed = true) }
+        }
+    }
+
+    fun clearFocusFailure() {
+        _uiState.update { it.copy(isFocusFailed = false) }
+        resetTimer()
+    }
 }

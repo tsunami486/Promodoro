@@ -68,8 +68,8 @@ fun SettingScreen(
                 Column {
                     Text("沉浸式模式", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "专注时隐藏系统状态栏",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "专注时不再显示接收的消息，切出会导致计时重置",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

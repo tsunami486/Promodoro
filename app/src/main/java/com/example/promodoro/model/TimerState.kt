@@ -5,5 +5,6 @@ data class TimerState(
     val timeToRemaining: Int = 25*60,
     val isRunning: Boolean = false,
     val isBreak: Boolean = false,
-    val isImmersiveModeEnabled: Boolean = true
+    val isImmersiveModeEnabled: Boolean = true,
+    val isFocusFailed: Boolean = false
 )

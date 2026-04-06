@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promodoro.model.TimerState
 import com.example.promodoro.utils.TimeUtils
@@ -33,12 +36,37 @@ fun TimerScreen(
     viewModel: TimerViewModel = viewModel(),
     onNavigateToSettings:()-> Unit
 ) {
-    // 收集 ViewModel 中的状态
     val state by viewModel.uiState.collectAsState()
     // 控制底部抽屉
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
+    //获取生命周期
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver {_,event ->
+            if (event == Lifecycle.Event.ON_PAUSE){
+                viewModel.handleAppBackground()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    if (state.isFocusFailed && state.isImmersiveModeEnabled){
+        AlertDialog(
+            onDismissRequest = {},
+            title = {Text("专注失败")},
+            text = {Text("由于你离开了，专注已中断。下次请保持专注哦！")},
+            confirmButton = {
+                Button(onClick = {viewModel.clearFocusFailure()}) {
+                    Text("我知道了")
+                }
+            }
+        )
+    }
 
     //全屏控制
     val view = LocalView.current
