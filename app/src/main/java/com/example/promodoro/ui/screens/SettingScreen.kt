@@ -17,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,6 +40,9 @@ fun SettingScreen(
         topBar = {
             TopAppBar(
                 title = {Text("设置")},
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -66,9 +70,9 @@ fun SettingScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("沉浸式模式", style = MaterialTheme.typography.titleMedium)
+                    Text("严格模式", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "专注时不再显示接收的消息，切出会导致计时重置",
+                        text = "专注时切出会导致计时重置",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -80,6 +84,27 @@ fun SettingScreen(
                 )
             }
 
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // 动态取色
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("动态取色", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "使应用配色跟随手机壁纸",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = state.isDynamicColorEnabled,
+                    onCheckedChange = { viewModel.setDynamicColor(it) }
+                )
+            }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         }
 

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -18,6 +19,8 @@ import com.example.promodoro.ui.screens.SettingScreen
 import com.example.promodoro.ui.screens.TimerScreen
 import com.example.promodoro.ui.theme.PomodoroTheme
 import com.example.promodoro.viewmodel.TimerViewModel
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,11 +28,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            PomodoroTheme {
+            val timerViewModel: TimerViewModel = viewModel()
+            val state by timerViewModel.uiState.collectAsState()
+
+            PomodoroTheme(
+                dynamicColor = state.isDynamicColorEnabled
+            ) {
                 Scaffold (
                     modifier = Modifier.fillMaxSize(),
                 ) {innerPadding->
-                    PomodoroApp(innerPadding)
+                    PomodoroApp(innerPadding,timerViewModel)
                 }
             }
         }
@@ -37,9 +45,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun PomodoroApp(innerPadding: PaddingValues) {
+fun PomodoroApp(innerPadding: PaddingValues,timerViewModel: TimerViewModel) {
     val navController = rememberNavController()
-    val timerViewModel: TimerViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = "timer"){
         composable("timer"){

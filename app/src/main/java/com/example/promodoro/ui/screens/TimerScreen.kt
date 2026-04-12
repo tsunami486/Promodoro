@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -27,6 +28,7 @@ import com.example.promodoro.model.TimerState
 import com.example.promodoro.utils.TimeUtils
 import com.example.promodoro.viewmodel.TimerViewModel
 import com.example.promodoro.ui.theme.PomodoroTheme
+import com.example.promodoro.utils.AlarmUtils
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +45,14 @@ fun TimerScreen(
     var showSheet by remember { mutableStateOf(false) }
     //获取生命周期
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    val context = LocalContext.current
+
+    LaunchedEffect(state.alarmTrigger) {
+        if (state.alarmTrigger > 0){
+            AlarmUtils.playAlarmAndVibrate(context)
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver {_,event ->
@@ -101,10 +111,12 @@ fun TimerScreen(
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
             SettingsSheetContent(
-                currentMinutes = state.timeRemaining / 60,
-                onSave = { newMinutes ->
-                    viewModel.resetTimer(newMinutes)
-                    viewModel.setWorkTime(newMinutes)
+                currentBreakMinutes = state.breakTimeLength / 60 ,
+                currentFocusMinutes = state.focusTimeLength / 60,
+                onSave = { newFocusMinutes, newBreakMinutes ->
+                    // 调用 ViewModel 的新方法
+                    viewModel.updateTimeSettings(newFocusMinutes, newBreakMinutes)
+                    // 关闭抽屉
                     scope.launch { sheetState.hide() }.invokeOnCompletion {
                         if (!sheetState.isVisible) showSheet = false
                     }
@@ -144,6 +156,16 @@ fun TimerScreenContent(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (state.isRunning) {
+                Text(
+                    text = if (state.isBreakMode) "休息时间，休息一下吧" else "专注中",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = if (state.isBreakMode) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
@@ -153,7 +175,9 @@ fun TimerScreenContent(
                 // 显示倒计时时间
                 Text(
                     text = TimeUtils.formatTime(state.timeRemaining),
-                    style = MaterialTheme.typography.displayLarge
+                    style = MaterialTheme.typography.displayLarge,
+                    color = if (state.isBreakMode) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+
                 )
             }
 
@@ -164,11 +188,22 @@ fun TimerScreenContent(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Button(onClick = onToggleClick) {
+                Button(
+                    onClick = onToggleClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if(state.isBreakMode) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                    )
+                ) {
                     Text(if (state.isRunning) "暂停" else "开始")
                 }
 
-                Button(onClick = onResetClick) {
+                Button(
+                    onClick = onResetClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    ) {
                     Text("重置")
                 }
             }

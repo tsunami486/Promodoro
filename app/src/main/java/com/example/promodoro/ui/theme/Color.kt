@@ -2,11 +2,9 @@ package com.example.promodoro.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-//我老觉得这个红色丑丑的（）
 val PomodoroRed = Color(0xFF9E3E3A)
 val PomodoroRedDark = Color(0xFF6E2B28)
 
-//这个绿色也一样
 val BreakGreen = Color(0xFF4A7D63)
 val BreakGreenDark = Color(0xFF2E5E46)
 

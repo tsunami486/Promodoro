@@ -20,7 +20,8 @@ fun VerticalNumberPicker(
     range: IntRange,
     currentValue: Int,
     onValueChange: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    color: Color
 ) {
     val itemHeight = 48.dp
     val listState = rememberLazyListState(
@@ -66,7 +67,7 @@ fun VerticalNumberPicker(
                 Text(
                     text = value.toString(),
                     style = if (isSelected) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.bodyLarge,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.4f)
+                    color = if (isSelected) color else Color.Gray.copy(alpha = 0.4f)
                 )
             }
         }
