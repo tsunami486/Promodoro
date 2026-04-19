@@ -136,20 +136,6 @@ fun TimerScreenContent(
     onTimeTextClick: ()-> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        // 设置按钮
-        if (!state.isRunning) {
-            IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "设置"
-                )
-            }
-        }
 
         Column(
             modifier = Modifier.align(Alignment.Center),

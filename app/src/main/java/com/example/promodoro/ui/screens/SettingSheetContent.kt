@@ -32,7 +32,6 @@ fun SettingsSheetContent(
     currentBreakMinutes: Int,
     onSave: (Int, Int) -> Unit
 ) {
-    // 分别记录专注和休息的选中值
     var selectFocusMinute by remember { mutableIntStateOf(if (currentFocusMinutes > 0) currentFocusMinutes else 25) }
     var selectBreakMinute by remember { mutableIntStateOf(if (currentBreakMinutes > 0) currentBreakMinutes else 5) }
     val pagerState = rememberPagerState(pageCount = {2})
@@ -45,33 +44,27 @@ fun SettingsSheetContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        // ================= 顶部指示器 =================
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(4.dp) // 指示器的高度，可以根据喜好改成 6.dp
         ) {
-            // 左侧（专注）颜色动画：选中时亮起主色调，未选中时变为透明（背景色）
             val leftColor by animateColorAsState(
                 targetValue = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else Color.Transparent,
                 label = "leftColor"
             )
-            // 右侧（休息）颜色动画：选中时亮起次色调(绿色)，未选中时变为透明
             val rightColor by animateColorAsState(
                 targetValue = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.secondary else Color.Transparent,
                 label = "rightColor"
             )
 
-            // 左半部分
             Box(
                 modifier = Modifier
-                    .weight(1f) // weight(1f) 保证左右严格平分宽度
+                    .weight(1f)
                     .fillMaxHeight()
                     .background(leftColor)
-                    // 加上点击事件：点左半边也能直接切换过去
                     .clickable { coroutineScope.launch { pagerState.animateScrollToPage(0) } }
             )
-            // 右半部分
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -103,14 +96,12 @@ fun SettingsSheetContent(
                     Text("调整休息时间", style = MaterialTheme.typography.titleLarge)
                 }
 
-                // 根据当前页码显示不同的内容
                 Row(
                     modifier = Modifier.fillMaxSize(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
                     if (page == 0) {
-                        // 第一页：专注时间滚轮
                         VerticalNumberPicker(
                             range = 1..60,
                             currentValue = selectFocusMinute,
@@ -119,7 +110,6 @@ fun SettingsSheetContent(
                             color = MaterialTheme.colorScheme.primary
                         )
                     } else {
-                        // 第二页：休息时间滚轮
                         VerticalNumberPicker(
                             range = 1..30,
                             currentValue = selectBreakMinute,
