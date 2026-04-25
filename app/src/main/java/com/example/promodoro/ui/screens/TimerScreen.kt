@@ -1,6 +1,8 @@
 package com.example.promodoro.ui.screens
 
+import AnimatedCircularTimer
 import android.app.Activity
+import android.content.Intent
 import android.service.autofill.OnClickAction
 import android.view.WindowInsetsController
 import androidx.compose.foundation.clickable
@@ -17,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -25,11 +28,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promodoro.model.TimerState
+import com.example.promodoro.service.TimerService
 import com.example.promodoro.utils.TimeUtils
 import com.example.promodoro.viewmodel.TimerViewModel
 import com.example.promodoro.ui.theme.PomodoroTheme
 import com.example.promodoro.utils.AlarmUtils
 import kotlinx.coroutines.launch
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +53,23 @@ fun TimerScreen(
 
     val context = LocalContext.current
 
+    LaunchedEffect(state.isRunning) {
+        if (state.isRunning && !state.isImmersiveModeEnabled && !state.isFocusModeEnabled) {
+            val intent = Intent(context, TimerService::class.java).apply {
+                action = TimerService.ACTION_START_OR_UPDATE
+
+                val targetTimeMillis = System.currentTimeMillis() + state.timeRemaining * 1000L
+                putExtra(TimerService.EXTRA_TIME, targetTimeMillis)
+                putExtra(TimerService.EXTRA_IS_BREAK, state.isBreakMode)
+            }
+            ContextCompat.startForegroundService(context, intent)
+        } else {
+            val intent = Intent(context, TimerService::class.java).apply {
+                action = TimerService.ACTION_STOP
+            }
+            context.startService(intent)
+        }
+    }
     LaunchedEffect(state.alarmTrigger) {
         if (state.alarmTrigger > 0){
             AlarmUtils.playAlarmAndVibrate(context)
@@ -58,6 +80,16 @@ fun TimerScreen(
         val observer = LifecycleEventObserver {_,event ->
             if (event == Lifecycle.Event.ON_PAUSE){
                 viewModel.handleAppBackground()
+            } else if (event == Lifecycle.Event.ON_RESUME) {
+                if (state.isRunning && !state.isImmersiveModeEnabled && !state.isFocusModeEnabled) {
+                    val intent = Intent(context, TimerService::class.java).apply {
+                        action = TimerService.ACTION_START_OR_UPDATE
+                        val targetTimeMillis = System.currentTimeMillis() + state.timeRemaining * 1000L
+                        putExtra(TimerService.EXTRA_TIME, targetTimeMillis)
+                        putExtra(TimerService.EXTRA_IS_BREAK, state.isBreakMode)
+                    }
+                    androidx.core.content.ContextCompat.startForegroundService(context, intent)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -65,6 +97,7 @@ fun TimerScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
+
     if (state.isFocusFailed && state.isImmersiveModeEnabled){
         AlertDialog(
             onDismissRequest = {},
@@ -158,12 +191,13 @@ fun TimerScreenContent(
                     .clickable(enabled = !state.isRunning) {onTimeTextClick()}
                     .padding(16.dp)
             ){
-                // 显示倒计时时间
-                Text(
-                    text = TimeUtils.formatTime(state.timeRemaining),
-                    style = MaterialTheme.typography.displayLarge,
-                    color = if (state.isBreakMode) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                val totalTimeForCurrentMode = if (state.isBreakMode) state.breakTimeLength else state.focusTimeLength
 
+                AnimatedCircularTimer(
+                    timeRemaining = state.timeRemaining,
+                    totalTime = totalTimeForCurrentMode,
+                    isBreakMode = state.isBreakMode,
+                    modifier = modifier
                 )
             }
 

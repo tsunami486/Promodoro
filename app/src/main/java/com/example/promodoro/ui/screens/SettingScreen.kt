@@ -52,7 +52,29 @@ fun SettingScreen(
                 .padding(innerPadding)
                 .padding(vertical = 16.dp)
         ) {
-            //沉浸式开关
+            //专注模式
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("专注模式", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "离开界面后自动暂停计时",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = state.isFocusModeEnabled,
+                    onCheckedChange = { viewModel.setFocusMode(it) }
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            //严格模式
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -95,6 +117,21 @@ fun SettingScreen(
                 Switch(
                     checked = state.isDynamicColorEnabled,
                     onCheckedChange = { viewModel.setDynamicColor(it) }
+                )
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("AOD模式", style = MaterialTheme.typography.titleMedium)
+                }
+                Switch(
+                    checked = state.isAodModeEnabled,
+                    onCheckedChange = { viewModel.setAodMode(it) }
                 )
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

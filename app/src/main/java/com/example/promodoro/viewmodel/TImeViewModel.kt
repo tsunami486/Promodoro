@@ -51,56 +51,46 @@ class TimerViewModel(private val repository: FocusRepository) : ViewModel() {
         _uiState.update { it.copy(isRunning = true) }
 
         timerJob = viewModelScope.launch {
-            // ================= 核心修改 =================
             val state = _uiState.value
-            // 如果是在专注模式下，且还没有记录 ID（说明是一次全新的开始，而不是暂停后继续）
             if (!state.isBreakMode && currentRecordId == null) {
                 val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val todayStr = sdf.format(Date())
-                // 先插入一条 0 分钟的空记录，并把返回的 ID 存起来
                 currentRecordId = repository.insertRecord(
                     FocusRecord(date = todayStr, focusMinutes = 0, breakMinutes = 0)
                 )
             }
-            // ===========================================
 
             while (_uiState.value.isRunning && _uiState.value.timeRemaining > 0) {
-                delay(1000L) // 过去1秒
+                delay(1000L)
                 _uiState.update { it.copy(timeRemaining = it.timeRemaining - 1) }
 
-                // ================= 每一分钟实时保存 =================
                 val currentState = _uiState.value
                 if (!currentState.isBreakMode) {
-                    // 算出已经流逝了多少秒
                     val elapsedSeconds = currentState.focusTimeLength - currentState.timeRemaining
 
-                    // 当流逝的秒数是 60 的倍数时（说明刚好走完一整分钟）
                     if (elapsedSeconds > 0 && elapsedSeconds % 60 == 0) {
                         val elapsedMinutes = elapsedSeconds / 60
-                        // 实时更新数据库里的那一行的分钟数！
                         currentRecordId?.let { id ->
                             repository.updateFocusMinutes(id, elapsedMinutes)
                         }
                     }
                 }
-                // =================================================
             }
 
             // 倒计时归零的切换逻辑
             if (_uiState.value.timeRemaining == 0) {
                 val currentState = _uiState.value
                 if (!currentState.isBreakMode) {
-                    // 专注结束 -> 休息
-                    currentRecordId = null // 清空 ID，等待下一次专注
+                    currentRecordId = null
                     _uiState.update {
                         it.copy(
                             isBreakMode = true,
                             timeRemaining = it.breakTimeLength,
-                            alarmTrigger = it.alarmTrigger + 1
+                            alarmTrigger = it.alarmTrigger + 1,
+                            isRunning = false
                         )
                     }
                 } else {
-                    // 休息结束 -> 专注
                     _uiState.update {
                         it.copy(
                             isBreakMode = false,
@@ -145,10 +135,25 @@ class TimerViewModel(private val repository: FocusRepository) : ViewModel() {
         }
     }
 
+    fun setFocusMode(enabled: Boolean) {
+        _uiState.update { it.copy(isFocusModeEnabled = enabled) }
+    }
+
     fun handleAppBackground() {
-        if (_uiState.value.isRunning && !_uiState.value.isBreakMode) {
-            pauseTimer()
-            _uiState.update { it.copy(isFocusFailed = true) }
+        val state = _uiState.value
+        if (state.isRunning && !state.isBreakMode) {
+            when {
+                state.isImmersiveModeEnabled -> {
+                    pauseTimer()
+                    _uiState.update { it.copy(isFocusFailed = true) }
+                }
+                state.isFocusModeEnabled -> {
+                    pauseTimer()
+                }
+                else -> {
+                    // Do nothing here
+                }
+            }
         }
     }
 
@@ -193,7 +198,7 @@ class TimerViewModel(private val repository: FocusRepository) : ViewModel() {
             val dateStr = sdf.format(cal.time)
 
             val dayOfWeekFormat = SimpleDateFormat("E", Locale.CHINESE)
-            val dayName = dayOfWeekFormat.format(cal.time).replace("周", "") // 把"周一"变成"一"
+            val dayName = dayOfWeekFormat.format(cal.time).replace("周", "")
 
             val dailyFocus = records.filter { it.date == dateStr }.sumOf { it.focusMinutes }
 
@@ -210,6 +215,9 @@ class TimerViewModel(private val repository: FocusRepository) : ViewModel() {
             weekDays = weekDays,
             focusTimes = focusTimes
         )
+    }
+    fun setAodMode(enabled: Boolean) {
+        _uiState.update { it.copy(isAodModeEnabled = enabled) }
     }
 }
 

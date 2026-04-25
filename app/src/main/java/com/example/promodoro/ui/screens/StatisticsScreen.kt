@@ -236,7 +236,7 @@ fun InteractiveBarChart(focusTimes: List<Float>, weekDays: List<String>) {
                                         color = MaterialTheme.colorScheme.inverseOnSurface,
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp)
                                     )
                                 }
                             }
