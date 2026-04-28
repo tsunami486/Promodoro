@@ -101,6 +101,7 @@ class TimerService : Service() {
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .build()
     }
@@ -114,12 +115,13 @@ class TimerService : Service() {
             )
             channel.enableLights(false)
             channel.enableVibration(false)
+            channel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             notificationManager.createNotificationChannel(channel)
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        serviceScope.cancel() // 服务销毁时清理协程，防止内存泄漏
+        serviceScope.cancel()
     }
 }

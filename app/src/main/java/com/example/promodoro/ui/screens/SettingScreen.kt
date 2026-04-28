@@ -87,7 +87,7 @@ fun SettingScreen(
                     Text("严格模式", style = MaterialTheme.typography.titleMedium)
                     Text(
                         text = "专注时切出会导致计时重置",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -127,7 +127,12 @@ fun SettingScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("AOD模式", style = MaterialTheme.typography.titleMedium)
+                    Text("AOD", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "开启后在计时时点击屏幕可以切换AOD模式",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 Switch(
                     checked = state.isAodModeEnabled,

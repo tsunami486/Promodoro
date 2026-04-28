@@ -10,14 +10,16 @@ import android.os.VibratorManager
 object AlarmUtils {
 
     fun playAlarmAndVibrate(context: Context){
-        try {
-            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val ringtone = RingtoneManager.getRingtone(context,uri)
-            ringtone.play()
-        } catch (e: Exception){
-            e.printStackTrace()
-        }
+        //铃声
+//        try {
+//            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+//            val ringtone = RingtoneManager.getRingtone(context,uri)
+//            ringtone.play()
+//        } catch (e: Exception){
+//            e.printStackTrace()
+//        }
 
+        //震动
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S){
             val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
             vibratorManager.defaultVibrator
