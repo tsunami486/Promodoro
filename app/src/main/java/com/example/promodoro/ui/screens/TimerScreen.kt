@@ -135,6 +135,11 @@ fun TimerScreen(
     // ====== 系统全屏与屏幕常亮接管 ======
     val view = LocalView.current
     if (!view.isInEditMode) {
+        val activity = view.context as Activity
+        // 获取系统的 NotificationManager
+        val notificationManager = remember {
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        }
         val window = (view.context as Activity).window
         val insetsController = remember { WindowCompat.getInsetsController(window, view) }
 
@@ -150,6 +155,35 @@ fun TimerScreen(
                     insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 } else {
                     insetsController.show(WindowInsetsCompat.Type.systemBars())
+                }
+            }
+            if (state.isRunning && (state.isImmersiveModeEnabled || state.isFocusModeEnabled)) {
+
+                // 【已注释：严格模式下的终极“锁机”】
+                /*
+                if (state.isImmersiveModeEnabled) {
+                    try { activity.startLockTask() } catch (e: Exception) { e.printStackTrace() }
+                }
+                */
+
+                // 开启勿扰模式（专注或严格模式下都开启）
+                if (notificationManager.isNotificationPolicyAccessGranted) {
+                    try {
+                        // INTERRUPTION_FILTER_NONE 代表完全勿扰（静音且拦截所有通知）
+                        notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
+                    } catch (e: Exception) { e.printStackTrace() }
+                }
+            } else {
+                // 倒计时结束或停止：恢复正常状态
+
+                // 【已注释：释放锁机状态】
+                // try { activity.stopLockTask() } catch (e: Exception) { e.printStackTrace() }
+
+                if (notificationManager.isNotificationPolicyAccessGranted) {
+                    try {
+                        // INTERRUPTION_FILTER_ALL 代表允许所有通知，恢复正常
+                        notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+                    } catch (e: Exception) { e.printStackTrace() }
                 }
             }
         }

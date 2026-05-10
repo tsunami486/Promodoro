@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.promodoro.data.FocusRecord
 import com.example.promodoro.data.FocusRepository
 import com.example.promodoro.model.TimerState
+import com.example.promodoro.ui.screens.DailyStatisticsDetailState
+import com.example.promodoro.ui.screens.PeriodFocusStat
 import com.example.promodoro.ui.screens.StatisticsState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -21,7 +23,81 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import kotlin.math.min
+
+private const val MINUTES_PER_DAY = 24 * 60
+private const val MILLIS_PER_MINUTE = 60_000L
+
+private data class FocusPeriodDefinition(
+    val label: String,
+    val rangeLabel: String,
+    val startMinute: Int,
+    val endMinute: Int
+)
+
+private val focusPeriodDefinitions = listOf(
+    FocusPeriodDefinition("凌晨", "00:00-06:00", 0, 6 * 60),
+    FocusPeriodDefinition("上午", "06:00-12:00", 6 * 60, 12 * 60),
+    FocusPeriodDefinition("下午", "12:00-18:00", 12 * 60, 18 * 60),
+    FocusPeriodDefinition("晚上", "18:00-24:00", 18 * 60, MINUTES_PER_DAY)
+)
+
+fun emptyDailyStatisticsDetailState(date: String): DailyStatisticsDetailState {
+    return DailyStatisticsDetailState(
+        date = date,
+        totalFocusMinutes = 0,
+        periods = focusPeriodDefinitions.map {
+            PeriodFocusStat(
+                label = it.label,
+                rangeLabel = it.rangeLabel,
+                minutes = 0,
+                ratio = 0f
+            )
+        }
+    )
+}
+
+fun calculateDailyStatisticsDetail(date: String, records: List<FocusRecord>): DailyStatisticsDetailState {
+    val dateStartMillis = parseDateStartMillis(date) ?: return emptyDailyStatisticsDetailState(date)
+    val periodMinutes = MutableList(focusPeriodDefinitions.size) { 0 }
+
+    records.forEach { record ->
+        if (record.focusMinutes <= 0) return@forEach
+
+        val recordStartMinute = Math.floorDiv(record.timestamp - dateStartMillis, MILLIS_PER_MINUTE)
+        val recordEndMinute = recordStartMinute + record.focusMinutes
+
+        focusPeriodDefinitions.forEachIndexed { index, period ->
+            val overlapStart = maxOf(recordStartMinute, period.startMinute.toLong())
+            val overlapEnd = minOf(recordEndMinute, period.endMinute.toLong())
+            val overlapMinutes = (overlapEnd - overlapStart).coerceAtLeast(0L).toInt()
+            periodMinutes[index] += overlapMinutes
+        }
+    }
+
+    val totalFocusMinutes = periodMinutes.sum()
+    val periods = focusPeriodDefinitions.mapIndexed { index, period ->
+        val minutes = periodMinutes[index]
+        PeriodFocusStat(
+            label = period.label,
+            rangeLabel = period.rangeLabel,
+            minutes = minutes,
+            ratio = if (totalFocusMinutes > 0) minutes.toFloat() / totalFocusMinutes else 0f
+        )
+    }
+
+    return DailyStatisticsDetailState(
+        date = date,
+        totalFocusMinutes = totalFocusMinutes,
+        periods = periods
+    )
+}
+
+private fun parseDateStartMillis(date: String): Long? {
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+        isLenient = false
+    }
+    return runCatching { formatter.parse(date)?.time }.getOrNull()
+}
 
 class TimerViewModel(private val repository: FocusRepository) : ViewModel() {
 
@@ -29,6 +105,8 @@ class TimerViewModel(private val repository: FocusRepository) : ViewModel() {
     val uiState: StateFlow<TimerState> = _uiState.asStateFlow()
     private var timerJob: Job? = null
     private var currentRecordId: Long? = null
+    private val dailyStatisticsDetailStates = mutableMapOf<String, StateFlow<DailyStatisticsDetailState>>()
+
     val statisticsState: StateFlow<StatisticsState> = repository.allRecords.map { records ->
         calculateStatistics(records)
     }.stateIn(
@@ -36,6 +114,18 @@ class TimerViewModel(private val repository: FocusRepository) : ViewModel() {
         SharingStarted.WhileSubscribed(5000),
         StatisticsState()
     )
+
+    fun dailyStatisticsDetailState(date: String): StateFlow<DailyStatisticsDetailState> {
+        return dailyStatisticsDetailStates.getOrPut(date) {
+            repository.allRecords.map { records ->
+                calculateDailyStatisticsDetail(date, records)
+            }.stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                emptyDailyStatisticsDetailState(date)
+            )
+        }
+    }
 
     // 切换计时器的播放/暂停状态
     fun toggleTimer() {
@@ -185,11 +275,11 @@ class TimerViewModel(private val repository: FocusRepository) : ViewModel() {
         val todayStr = sdf.format(Date())
 
         val todayRecords = records.filter { it.date == todayStr }
-        val todayFocus = todayRecords.sumOf { it.focusMinutes }
+        val todayFocus = calculateDailyStatisticsDetail(todayStr, records).totalFocusMinutes
         val todayBreak = todayRecords.sumOf { it.breakMinutes }
 
-        val calendar = Calendar.getInstance()
         val weekDays = mutableListOf<String>()
+        val weekDates = mutableListOf<String>()
         val focusTimes = mutableListOf<Float>()
 
         for (i in 6 downTo 0) {
@@ -200,20 +290,44 @@ class TimerViewModel(private val repository: FocusRepository) : ViewModel() {
             val dayOfWeekFormat = SimpleDateFormat("E", Locale.CHINESE)
             val dayName = dayOfWeekFormat.format(cal.time).replace("周", "")
 
-            val dailyFocus = records.filter { it.date == dateStr }.sumOf { it.focusMinutes }
+            val dailyFocus = calculateDailyStatisticsDetail(dateStr, records).totalFocusMinutes
 
             weekDays.add(if (i == 0) "今" else dayName)
+            weekDates.add(dateStr)
             focusTimes.add(dailyFocus.toFloat())
         }
 
         val weekTotal = focusTimes.sum().toInt()
+
+        val monthDays = mutableListOf<String>()
+        val monthDates = mutableListOf<String>()
+        val monthFocusTimes = mutableListOf<Float>()
+        val monthCalendar = Calendar.getInstance()
+        val todayDayOfMonth = monthCalendar.get(Calendar.DAY_OF_MONTH)
+
+        for (day in 1..todayDayOfMonth) {
+            monthCalendar.set(Calendar.DAY_OF_MONTH, day)
+            val dateStr = sdf.format(monthCalendar.time)
+            val dailyFocus = calculateDailyStatisticsDetail(dateStr, records).totalFocusMinutes
+
+            monthDays.add(day.toString())
+            monthDates.add(dateStr)
+            monthFocusTimes.add(dailyFocus.toFloat())
+        }
+
+        val monthTotal = monthFocusTimes.sum().toInt()
 
         return StatisticsState(
             todayFocusMinutes = todayFocus,
             todayBreakMinutes = todayBreak,
             weekTotalFocusMinutes = weekTotal,
             weekDays = weekDays,
-            focusTimes = focusTimes
+            weekDates = weekDates,
+            focusTimes = focusTimes,
+            monthTotalFocusMinutes = monthTotal,
+            monthDays = monthDays,
+            monthDates = monthDates,
+            monthFocusTimes = monthFocusTimes
         )
     }
     fun setAodMode(enabled: Boolean) {

@@ -1,12 +1,21 @@
 package com.example.promodoro
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -14,7 +23,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,40 +31,30 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.navigation.NavType
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.promodoro.ui.screens.SettingScreen
-import com.example.promodoro.ui.screens.TimerScreen
-import com.example.promodoro.ui.theme.PomodoroTheme
-import com.example.promodoro.viewmodel.TimerViewModel
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.navArgument
 import com.example.promodoro.data.AppDatabase
 import com.example.promodoro.data.FocusRepository
 import com.example.promodoro.ui.components.FloatingBottomNav
+import com.example.promodoro.ui.screens.SettingScreen
+import com.example.promodoro.ui.screens.StatisticsDetailScreen
 import com.example.promodoro.ui.screens.StatisticsScreen
-import com.example.promodoro.ui.screens.StatisticsState
+import com.example.promodoro.ui.screens.TimerScreen
+import com.example.promodoro.ui.theme.PomodoroTheme
+import com.example.promodoro.viewmodel.TimerViewModel
 import com.example.promodoro.viewmodel.TimerViewModelFactory
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
-import android.content.pm.PackageManager
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
-import android.widget.Toast
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -126,24 +124,19 @@ fun checkAndRequestOverlayPermission(context: Context): Boolean {
 }
 
 @Composable
-fun PomodoroApp(innerPadding: PaddingValues,timerViewModel: TimerViewModel) {
+fun PomodoroApp(innerPadding: PaddingValues, timerViewModel: TimerViewModel) {
     val navController = rememberNavController()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val timerState by timerViewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var statisticsScrollAnimationKey by remember { mutableIntStateOf(0) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
-            if (isGranted) {
-                // 用户同意了权限，一切正常
-            } else {
-                // 用户拒绝了权限。
-                // 提示：在实际商业项目中，这里通常会弹出一个 AlertDialog，
-                // 引导用户去系统设置里手动开启，因为没有通知会导致后台倒计时失效。
-            }
+
         }
     )
 
@@ -169,7 +162,7 @@ fun PomodoroApp(innerPadding: PaddingValues,timerViewModel: TimerViewModel) {
         NavHost(
             navController = navController,
             startDestination = "timer",
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.padding(),
             enterTransition = { fadeIn(animationSpec = tween(100)) },
             exitTransition = { fadeOut(animationSpec = tween(100)) }
         ){
@@ -182,11 +175,36 @@ fun PomodoroApp(innerPadding: PaddingValues,timerViewModel: TimerViewModel) {
 
             composable("statistics"){
                 val statsState by timerViewModel.statisticsState.collectAsState()
-                StatisticsScreen(state = statsState)
+                StatisticsScreen(
+                    innerPadding = innerPadding,
+                    state = statsState,
+                    scrollAnimationKey = statisticsScrollAnimationKey,
+                    onBarClick = { date ->
+                        navController.navigate("statistics_detail/$date")
+                    }
+                )
+            }
+
+            composable(
+                route = "statistics_detail/{date}",
+                arguments = listOf(navArgument("date") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val date = backStackEntry.arguments?.getString("date").orEmpty()
+                val detailStateFlow = remember(date) {
+                    timerViewModel.dailyStatisticsDetailState(date)
+                }
+                val detailState by detailStateFlow.collectAsState()
+
+                StatisticsDetailScreen(
+                    innerPadding = innerPadding,
+                    state = detailState,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
 
             composable("settings") {
                 SettingScreen(
+                    innerPadding = innerPadding,
                     viewModel = timerViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
@@ -194,7 +212,7 @@ fun PomodoroApp(innerPadding: PaddingValues,timerViewModel: TimerViewModel) {
         }
 
         AnimatedVisibility(
-            visible = !timerState.isRunning,
+            visible = !timerState.isRunning && currentRoute?.startsWith("statistics_detail") != true,
             modifier = Modifier.align(Alignment.BottomCenter),
             enter = slideInVertically(
                 initialOffsetY = { fullHeight -> fullHeight * 2 },
@@ -208,6 +226,9 @@ fun PomodoroApp(innerPadding: PaddingValues,timerViewModel: TimerViewModel) {
             FloatingBottomNav(
                 currentRoute = currentRoute,
                 onNavigate = { route ->
+                    if (route == "statistics") {
+                        statisticsScrollAnimationKey += 1
+                    }
                     navController.navigate(route) {
                         popUpTo(navController.graph.startDestinationId) { saveState = true }
                         launchSingleTop = true
